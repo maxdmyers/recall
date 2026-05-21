@@ -9,6 +9,9 @@ set -uo pipefail
 VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault/agentic-os}"
 SESSIONS="$VAULT/sessions"
 
+# Don't capture distill's own headless claude runs (recursion guard).
+[ -n "${AGENTIC_OS_DISTILL:-}" ] && exit 0
+
 PAYLOAD=$(cat)
 
 # Only act on the Stop event regardless of how we're wired.

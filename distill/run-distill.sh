@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# agentic-os :: nightly distill runner (local, Mac-only)
+# pull vault -> thin undistilled session transcripts -> run Sonnet distill ->
+# mark sessions distilled -> commit & push vault.
+# Skips (costs $0) if fewer than THRESHOLD undistilled sessions.
+
+set -uo pipefail
+
+VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault}"
+AOS="$VAULT/agentic-os"
+SESSIONS="$AOS/sessions"
+SCRATCH="$VAULT/.distill-scratch"
+LOCK="$VAULT/.distill.lock"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+THRESHOLD="${AGENTIC_OS_DISTILL_THRESHOLD:-1}"
+MODEL="${AGENTIC_OS_DISTILL_MODEL:-sonnet}"
+BUDGET="${AGENTIC_OS_DISTILL_BUDGET:-1.50}"
+LOG="$AOS/.distill.log"
+
+log(){ printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >> "$LOG"; }
+
+# Single-run lock (mkdir is atomic).
+if ! mkdir "$LOCK" 2>/dev/null; then log "skip: locked"; exit 0; fi
+trap 'rm -rf "$LOCK" "$SCRATCH"' EXIT
+
+export AGENTIC_OS_DISTILL=1   # stops the capture hook logging our own claude run
+
+cd "$VAULT" || { log "no vault at $VAULT"; exit 1; }
+git pull --rebase --autostash -q 2>>"$LOG" || log "warn: git pull failed"
+
+# Collect undistilled sessions.
+mapfile -t TODO < <(grep -rl '^distilled: false' "$SESSIONS" 2>/dev/null | sort)
+COUNT=${#TODO[@]}
+if [ "$COUNT" -lt "$THRESHOLD" ]; then log "skip: $COUNT undistilled (< $THRESHOLD)"; exit 0; fi
+log "start: $COUNT undistilled sessions"
+
+# Thin each session's transcript into scratch (fallback: the dump itself).
+rm -rf "$SCRATCH"; mkdir -p "$SCRATCH"
+for f in "${TODO[@]}"; do
+  proj=$(grep -m1 '^project:' "$f" | sed 's/^project: //')
+  sid=$(grep -m1 '^session_id:' "$f" | sed 's/^session_id: //')
+  tx=$(grep -m1 '^transcript:' "$f" | sed 's/^transcript: //')
+  out="$SCRATCH/${proj}__${sid:0:8}.md"
+  {
+    echo "# session: $sid"
+    echo "# project: $proj"
+    echo
+    if [ -f "$tx" ]; then "$HERE/thin-transcript.sh" "$tx"; else cat "$f"; fi
+  } > "$out"
+done
+
+# Run the distill agent headless. Restrict tools; auto-accept edits; cap spend.
+PROMPT=$(cat "$HERE/distill-prompt.md")
+if claude -p "$PROMPT" \
+    --model "$MODEL" \
+    --permission-mode acceptEdits \
+    --allowedTools "Read Write Edit Glob Grep" \
+    --add-dir "$VAULT" \
+    --max-budget-usd "$BUDGET" \
+    --output-format json >>"$LOG" 2>&1; then
+  log "distill ok"
+else
+  log "distill FAILED (rc=$?); leaving sessions undistilled"; exit 1
+fi
+
+# Mark processed sessions distilled (only after success).
+# perl, not sed: byte-safe against emoji/UTF-8 in dumps (BSD sed throws "illegal byte sequence").
+NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+for f in "${TODO[@]}"; do
+  perl -i -pe 's/^distilled: false/distilled: true/' "$f"
+  grep -q '^distilled_at:' "$f" || perl -i -pe "s/^(distilled: true)\$/\$1\ndistilled_at: $NOW/" "$f"
+done
+
+# Commit & push knowledge back.
+git add -A
+if ! git diff --cached --quiet; then
+  git commit -q -m "distill: $COUNT sessions -> knowledge ($(date -u '+%Y-%m-%d'))"
+  git push -q 2>>"$LOG" || log "warn: git push failed"
+  log "committed + pushed"
+else
+  log "nothing changed to commit"
+fi
+log "done"
