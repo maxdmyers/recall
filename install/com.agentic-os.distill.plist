@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.agentic-os.distill</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/maxmyers/Sites/agentic-os/distill/run-distill.sh</string>
+  </array>
+
+  <!-- 7:00 PM daily. launchd runs missed jobs on next wake if the Mac was asleep. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>19</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+
+  <!-- launchd has a minimal env; give it the binaries the runner needs. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/maxmyers/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>LANG</key>
+    <string>en_US.UTF-8</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/maxmyers/Documents/Vault/agentic-os/.distill.launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/maxmyers/Documents/Vault/agentic-os/.distill.launchd.log</string>
+</dict>
+</plist>

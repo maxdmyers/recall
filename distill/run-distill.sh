@@ -28,8 +28,12 @@ export AGENTIC_OS_DISTILL=1   # stops the capture hook logging our own claude ru
 cd "$VAULT" || { log "no vault at $VAULT"; exit 1; }
 git pull --rebase --autostash -q 2>>"$LOG" || log "warn: git pull failed"
 
-# Collect undistilled sessions.
-mapfile -t TODO < <(grep -rl '^distilled: false' "$SESSIONS" 2>/dev/null | sort)
+# Collect undistilled sessions, excluding ones touched in the last STALE min
+# (the hook rewrites the dump each turn, so a recent mtime == session still active).
+STALE="${AGENTIC_OS_DISTILL_STALE_MIN:-30}"
+mapfile -t TODO < <(comm -12 \
+  <(grep -rl '^distilled: false' "$SESSIONS" 2>/dev/null | sort) \
+  <(find "$SESSIONS" -name '*.md' -mmin +"$STALE" 2>/dev/null | sort))
 COUNT=${#TODO[@]}
 if [ "$COUNT" -lt "$THRESHOLD" ]; then log "skip: $COUNT undistilled (< $THRESHOLD)"; exit 0; fi
 log "start: $COUNT undistilled sessions"
