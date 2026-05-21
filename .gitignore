@@ -1,0 +1,9 @@
+# Local-only / machine-specific
+*.local
+.DS_Store
+
+# Rendered install artifacts (generated from templates)
+install/*.generated.*
+
+# Never commit the vault or transcripts — those live elsewhere
+vault/
