@@ -5,9 +5,10 @@
   <key>Label</key>
   <string>com.agentic-os.distill</string>
 
+  <!-- Homebrew bash 5.x: system /bin/bash is 3.2 and lacks `mapfile` (used by the runner). -->
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/bash</string>
+    <string>/opt/homebrew/bin/bash</string>
     <string>/Users/maxmyers/Sites/agentic-os/distill/run-distill.sh</string>
   </array>
 

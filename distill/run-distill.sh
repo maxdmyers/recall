@@ -4,6 +4,15 @@
 # mark sessions distilled -> commit & push vault.
 # Skips (costs $0) if fewer than THRESHOLD undistilled sessions.
 
+# Needs bash 4+ (mapfile). macOS /bin/bash is 3.2 — re-exec under Homebrew bash if so.
+if [ "${BASH_VERSINFO:-0}" -lt 4 ]; then
+  for b in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [ -x "$b" ] && exec "$b" "$0" "$@"
+  done
+  echo "run-distill: needs bash 4+ (have $BASH_VERSION); no modern bash found" >&2
+  exit 1
+fi
+
 set -uo pipefail
 
 VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault}"
