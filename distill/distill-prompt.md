@@ -6,7 +6,9 @@ skills/automations when you notice repeated work. Be terse. Quality over volume.
 - `.distill-scratch/*.md` — thinned narratives of the sessions to process. Each file's
   header gives its `project` and `session_id`. These are your source material.
 - `agentic-os/knowledge/` — existing knowledge notes (read before writing; update, don't dupe).
-- `agentic-os/knowledge/INDEX.md` — the always-on index.
+- `agentic-os/knowledge/global/INDEX.md` — global index (auto-loaded every session).
+- `agentic-os/knowledge/projects/<project>/INDEX.md` — per-project index (auto-loaded when
+  Claude is launched inside that project).
 - `agentic-os/inbox/proposals.md` — existing skill/automation proposals.
 
 ## Do this
@@ -38,9 +40,19 @@ skills/automations when you notice repeated work. Be terse. Quality over volume.
    ```
    NEVER create skills, crons, or routines. Only write proposals. The human approves.
 
-4. **Refresh `agentic-os/knowledge/INDEX.md`.** One line per knowledge note:
-   `- [[note-name]] — <one-line summary> (global | project:<name>)`. Keep it tight; this is
-   the always-on index, so every line costs tokens forever.
+4. **Refresh the relevant INDEX file(s).** Each INDEX lists only notes in its own scope:
+   - If you touched a global note → refresh `agentic-os/knowledge/global/INDEX.md`.
+   - For each project whose notes you touched → refresh
+     `agentic-os/knowledge/projects/<project>/INDEX.md`.
+
+   Format (one line per note, no scope suffix — the file location already implies scope):
+   ```
+   # <project|global> knowledge
+
+   - [[note-name]] — <one-line summary>
+   - [[note-name]] — <one-line summary>
+   ```
+   Keep entries tight; each line costs tokens every time it's auto-injected.
 
 ## Rules
 - Append/merge; never delete a human's note. Don't touch `.distill-scratch/` or session files.
