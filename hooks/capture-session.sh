@@ -41,7 +41,17 @@ fi
 
 SHORT="${SESSION_ID:0:8}"
 mkdir -p "$SESSIONS"
-FILE="$SESSIONS/${PROJECT}__${SHORT}.md"
+
+# One dump per session_id — NOT per project. A session that changes git-repo
+# context mid-run (cd into another repo, or a repo rename) would otherwise fork
+# into a second dump and get distilled twice. Reuse the existing dump if one
+# already exists for this session_id, keeping its original project-named file.
+FILE=""
+for existing in "$SESSIONS"/*__"$SHORT".md; do
+  [ -f "$existing" ] || continue
+  if grep -q "^session_id: $SESSION_ID\$" "$existing"; then FILE="$existing"; break; fi
+done
+[ -n "$FILE" ] || FILE="$SESSIONS/${PROJECT}__${SHORT}.md"
 
 # Preserve original Started timestamp across turns.
 NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
