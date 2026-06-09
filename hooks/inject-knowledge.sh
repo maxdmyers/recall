@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agentic-os :: SessionStart hook — injects vault knowledge indexes as
+# recall :: SessionStart hook — injects vault knowledge indexes as
 # additional context. Read-only, never modifies project files. Fails open:
 # any error -> exit 0 silently so a broken vault never blocks session start.
 #
@@ -8,8 +8,8 @@
 
 set +e  # never die
 
-VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault}"
-KNOWLEDGE="$VAULT/agentic-os/knowledge"
+VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
+KNOWLEDGE="$VAULT/recall/knowledge"
 [ -d "$KNOWLEDGE" ] || exit 0
 
 # Project = git root basename, else cwd basename. Matches capture-session.sh.
@@ -24,7 +24,7 @@ fi
 
 # Compose the context block. Tagged so Claude can recognize it as background.
 CTX=$(
-  echo "<agentic-os-knowledge>"
+  echo "<recall-knowledge>"
   echo "Indexes from your knowledge vault. Read full notes on demand:"
   echo "  $KNOWLEDGE/global/<name>.md  or  $KNOWLEDGE/projects/$PROJECT/<name>.md"
   echo
@@ -55,7 +55,7 @@ CTX=$(
     [ "$found" -eq 1 ] && echo
   fi
 
-  echo "</agentic-os-knowledge>"
+  echo "</recall-knowledge>"
 )
 
 # Read the hook event name from stdin (SessionStart for all sources). Default

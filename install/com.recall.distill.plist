@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.agentic-os.distill</string>
+  <string>com.recall.distill</string>
 
   <!-- Homebrew bash 5.x: system /bin/bash is 3.2 and lacks `mapfile` (used by the runner). -->
   <key>ProgramArguments</key>
   <array>
     <string>/opt/homebrew/bin/bash</string>
-    <string>/Users/maxmyers/Sites/agentic-os/distill/run-distill.sh</string>
+    <string>/Users/maxmyers/Sites/recall/distill/run-distill.sh</string>
   </array>
 
   <!-- 7:00 PM daily. launchd runs missed jobs on next wake if the Mac was asleep. -->
@@ -32,8 +32,8 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/maxmyers/Documents/Vault/agentic-os/.distill.launchd.log</string>
+  <string>/Users/maxmyers/Documents/Vault/recall/.distill.launchd.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/maxmyers/Documents/Vault/agentic-os/.distill.launchd.log</string>
+  <string>/Users/maxmyers/Documents/Vault/recall/.distill.launchd.log</string>
 </dict>
 </plist>

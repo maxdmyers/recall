@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/maxmyers/Sites/agentic-os/hooks/capture-session.sh"
+            "command": "/Users/maxmyers/Sites/recall/hooks/capture-session.sh"
           }
         ]
       }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/maxmyers/Sites/agentic-os/hooks/inject-knowledge.sh"
+            "command": "/Users/maxmyers/Sites/recall/hooks/inject-knowledge.sh"
           }
         ]
       }

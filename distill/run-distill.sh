@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agentic-os :: nightly distill runner (local, Mac-only)
+# recall :: nightly distill runner (local, Mac-only)
 # pull vault -> thin undistilled session transcripts -> run Sonnet distill ->
 # mark sessions distilled -> commit & push vault.
 # Skips (costs $0) if fewer than THRESHOLD undistilled sessions.
@@ -15,15 +15,15 @@ fi
 
 set -uo pipefail
 
-VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault}"
-AOS="$VAULT/agentic-os"
+VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
+AOS="$VAULT/recall"
 SESSIONS="$AOS/sessions"
 SCRATCH="$VAULT/.distill-scratch"
 LOCK="$VAULT/.distill.lock"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-THRESHOLD="${AGENTIC_OS_DISTILL_THRESHOLD:-1}"
-MODEL="${AGENTIC_OS_DISTILL_MODEL:-sonnet}"
-BUDGET="${AGENTIC_OS_DISTILL_BUDGET:-1.50}"
+THRESHOLD="${RECALL_DISTILL_THRESHOLD:-1}"
+MODEL="${RECALL_DISTILL_MODEL:-sonnet}"
+BUDGET="${RECALL_DISTILL_BUDGET:-1.50}"
 LOG="$AOS/.distill.log"
 
 log(){ printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >> "$LOG"; }
@@ -32,14 +32,14 @@ log(){ printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >> "$LOG"; }
 if ! mkdir "$LOCK" 2>/dev/null; then log "skip: locked"; exit 0; fi
 trap 'rm -rf "$LOCK" "$SCRATCH"' EXIT
 
-export AGENTIC_OS_DISTILL=1   # stops the capture hook logging our own claude run
+export RECALL_DISTILL=1   # stops the capture hook logging our own claude run
 
 cd "$VAULT" || { log "no vault at $VAULT"; exit 1; }
 git pull --rebase --autostash -q 2>>"$LOG" || log "warn: git pull failed"
 
 # Collect undistilled sessions, excluding ones touched in the last STALE min
 # (the hook rewrites the dump each turn, so a recent mtime == session still active).
-STALE="${AGENTIC_OS_DISTILL_STALE_MIN:-30}"
+STALE="${RECALL_DISTILL_STALE_MIN:-30}"
 mapfile -t TODO < <(comm -12 \
   <(grep -rl '^distilled: false' "$SESSIONS" 2>/dev/null | sort) \
   <(find "$SESSIONS" -name '*.md' -mmin +"$STALE" 2>/dev/null | sort))

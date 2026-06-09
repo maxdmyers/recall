@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# agentic-os :: capture hook (Stop)
+# recall :: capture hook (Stop)
 # Idempotent per session_id. Writes a lightweight markdown dump pointing at the
 # full transcript, so the nightly distill can read sessions without an LLM call here.
 # Pure shell + jq + git. Never blocks Claude: always exits 0.
 
 set -uo pipefail
 
-VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault/agentic-os}"
+VAULT="${RECALL_VAULT:-$HOME/Documents/Vault/recall}"
 SESSIONS="$VAULT/sessions"
 
 # Don't capture distill's own headless claude runs (recursion guard).
-[ -n "${AGENTIC_OS_DISTILL:-}" ] && exit 0
+[ -n "${RECALL_DISTILL:-}" ] && exit 0
 
 PAYLOAD=$(cat)
 
@@ -60,7 +60,7 @@ fi
   echo "updated: $NOW"
   echo "transcript: $TRANSCRIPT"
   echo "distilled: false"
-  echo "tags: [agentic-os/session]"
+  echo "tags: [recall/session]"
   echo "---"
   echo
   echo "# Session $SHORT — $PROJECT"

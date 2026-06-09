@@ -1,4 +1,4 @@
-# agentic-os
+# recall
 
 A self-improving layer for Claude Code: it learns from sessions, retains knowledge
 in an Obsidian vault, and proposes skills/automations from recurring patterns.
@@ -38,7 +38,7 @@ when a pattern generalizes.
 ## Vault layout
 
 ```
-<vault>/agentic-os/
+<vault>/recall/
   sessions/                       raw dumps, tagged by project
   knowledge/
     global/        <topic>.md     cross-project

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# agentic-os :: status CLI / dashboard
-# Read-only inspection of vault state. Surface for /agentic-os skill.
+# recall :: status CLI / dashboard
+# Read-only inspection of vault state. Surface for /recall skill.
 #
 # Subcommands:
 #   status     overall health (default)
@@ -12,13 +12,13 @@
 
 set +e
 
-VAULT="${AGENTIC_OS_VAULT:-$HOME/Documents/Vault}"
-AOS="$VAULT/agentic-os"
+VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
+AOS="$VAULT/recall"
 SESSIONS="$AOS/sessions"
 KNOWLEDGE="$AOS/knowledge"
 LOG="$AOS/.distill.log"
 
-[ -d "$AOS" ] || { echo "agentic-os: vault not found at $AOS" >&2; exit 1; }
+[ -d "$AOS" ] || { echo "recall: vault not found at $AOS" >&2; exit 1; }
 
 # ---- helpers ----
 hr() { printf '\n— %s —\n' "$1"; }
@@ -44,7 +44,7 @@ cmd_status() {
 
   hr "distill schedule"
   local job_status last_line
-  job_status=$(launchctl list 2>/dev/null | awk '/com\.agentic-os\.distill/ {printf "PID=%s  exit=%s", $1, $2}')
+  job_status=$(launchctl list 2>/dev/null | awk '/com\.recall\.distill/ {printf "PID=%s  exit=%s", $1, $2}')
   printf "  launchd  %s\n" "${job_status:-not loaded}"
   last_line=$(grep -E ' done$| FAILED| skip:' "$LOG" 2>/dev/null | tail -1)
   printf "  last run %s\n" "${last_line:-(no runs logged)}"
@@ -139,6 +139,6 @@ case "${1:-status}" in
   proposals)  cmd_proposals ;;
   distill)    cmd_distill ;;
   all)        cmd_status; cmd_sessions; cmd_knowledge; cmd_proposals; cmd_distill ;;
-  -h|--help|help) echo "usage: agentic-os.sh [status|sessions|knowledge|proposals|distill|all]" ;;
+  -h|--help|help) echo "usage: recall.sh [status|sessions|knowledge|proposals|distill|all]" ;;
   *) echo "unknown subcommand: $1" >&2; exit 1 ;;
 esac

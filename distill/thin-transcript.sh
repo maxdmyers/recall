@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agentic-os :: transcript thinner
+# recall :: transcript thinner
 # Turns a raw Claude Code transcript JSONL into a compact narrative:
 #   keeps user msgs + assistant text + tool names/inputs,
 #   drops thinking, tool-result bodies, and other bookkeeping.
