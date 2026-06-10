@@ -8,10 +8,12 @@
 #   knowledge  knowledge notes by area + recent additions
 #   proposals  pending + implemented skill proposals
 #   distill    last N distill runs (cost, duration, outcome)
+#   open       (re)build the HTML dashboard and open it in the browser
 #   all        everything above
 
 set +e
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
 AOS="$VAULT/recall"
 SESSIONS="$AOS/sessions"
@@ -132,13 +134,20 @@ cmd_distill() {
   '
 }
 
+cmd_open() {
+  local out="$AOS/dashboard.html"
+  "$HERE/build-dashboard.sh" "$out" || { echo "recall: dashboard build failed" >&2; return 1; }
+  command -v open >/dev/null 2>&1 && open "$out"
+}
+
 case "${1:-status}" in
   status)     cmd_status ;;
   sessions)   cmd_sessions ;;
   knowledge)  cmd_knowledge ;;
   proposals)  cmd_proposals ;;
   distill)    cmd_distill ;;
+  open|html)  cmd_open ;;
   all)        cmd_status; cmd_sessions; cmd_knowledge; cmd_proposals; cmd_distill ;;
-  -h|--help|help) echo "usage: recall.sh [status|sessions|knowledge|proposals|distill|all]" ;;
+  -h|--help|help) echo "usage: recall.sh [status|sessions|knowledge|proposals|distill|open|all]" ;;
   *) echo "unknown subcommand: $1" >&2; exit 1 ;;
 esac
