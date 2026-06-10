@@ -37,6 +37,10 @@ export RECALL_DISTILL=1   # stops the capture hook logging our own claude run
 cd "$VAULT" || { log "no vault at $VAULT"; exit 1; }
 git pull --rebase --autostash -q 2>>"$LOG" || log "warn: git pull failed"
 
+# Refresh the dashboard every night (cheap, pure shell) — even if we skip
+# distilling below, so queue count + schedule health stay current.
+"$HERE/../dashboard/build-dashboard.sh" >>"$LOG" 2>&1 || log "warn: dashboard build failed"
+
 # Collect undistilled sessions, excluding ones touched in the last STALE min
 # (the hook rewrites the dump each turn, so a recent mtime == session still active).
 STALE="${RECALL_DISTILL_STALE_MIN:-30}"
@@ -93,4 +97,7 @@ if ! git diff --cached --quiet; then
 else
   log "nothing changed to commit"
 fi
+
+# Rebuild dashboard so freshly-distilled notes show up tonight, not tomorrow.
+"$HERE/../dashboard/build-dashboard.sh" >>"$LOG" 2>&1 || log "warn: dashboard build failed"
 log "done"
