@@ -56,7 +56,9 @@ The installer is **interactive** and will ask:
   in a `recall/` subfolder, syncing alongside your notes) or let it create one;
 - **whether to init git** — only if the chosen directory isn't already a repo, and
   it offers to skip if you manage git via the **obsidian-git** plugin instead;
-- **what time distill runs** — defaults to 19:00 (7pm).
+- **what time distill runs** — defaults to 19:00 (7pm);
+- **whether to add a recall block to `~/.claude/CLAUDE.md`** — a short, idempotent
+  note telling Claude the vault is auto-injected and read-only in sessions.
 
 It then checks dependencies, scaffolds the vault, merges the two hooks into
 `~/.claude/settings.json` **without** disturbing existing hooks (backup written to
@@ -77,6 +79,7 @@ Non-interactive / scripted installs:
 | `--time HH:MM` | Nightly distill time, 24h. |
 | `--no-git` | Never `git init` the vault. |
 | `--no-launchd` | Skip the scheduler (run distill by hand). |
+| `--no-claude-md` | Don't add the recall block to `~/.claude/CLAUDE.md`. |
 
 > For knowledge to sync across machines the vault needs a git `origin` remote (the
 > nightly job commits + pushes) — or let the obsidian-git plugin handle sync.

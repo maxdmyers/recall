@@ -13,6 +13,7 @@
 #   ./install/install.sh --time 22:30    # nightly distill time (24h HH:MM)
 #   ./install/install.sh --no-git        # never git-init the vault
 #   ./install/install.sh --no-launchd    # skip the scheduler
+#   ./install/install.sh --no-claude-md  # don't add the recall block to ~/.claude/CLAUDE.md
 #
 # Clone this repo wherever you like — the installer locates itself, so the repo
 # path is not hardcoded anywhere. Runs under system bash 3.2 (no bash-4 features).
@@ -24,6 +25,7 @@ VAULT_DIR="${RECALL_VAULT:-}"     # empty => ask (or default) below
 DISTILL_TIME="19:00"
 DO_LAUNCHD=1
 DO_GIT="auto"                     # auto = init if missing (ask first); no = never
+DO_CLAUDE_MD="ask"                # ask = prompt (default yes); yes/no = forced
 ASSUME_YES=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -31,6 +33,8 @@ while [ $# -gt 0 ]; do
     --time) DISTILL_TIME="$2"; shift 2;;
     --no-launchd) DO_LAUNCHD=0; shift;;
     --no-git) DO_GIT="no"; shift;;
+    --claude-md) DO_CLAUDE_MD="yes"; shift;;
+    --no-claude-md) DO_CLAUDE_MD="no"; shift;;
     -y|--yes) ASSUME_YES=1; shift;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
     *) echo "unknown arg: $1" >&2; exit 1;;
@@ -187,7 +191,41 @@ MERGED="$(jq -s '
 printf '%s\n' "$MERGED" > "$SETTINGS"
 say "hooks merged (backup: $SETTINGS.recall-bak)"
 
-# ---- 7. launchd job ----
+# ---- 7. global CLAUDE.md guidance (optional, idempotent) ----
+# Tells Claude the vault is auto-injected, read-only in sessions, distill-written.
+# Bounded by HTML-comment markers so re-runs replace the block, never duplicate it.
+recall_claude_block() { cat <<'BLOCK' | sed "s#__VAULT_DIR__#$VAULT_DIR#g"
+<!-- BEGIN recall -->
+## Knowledge vault (recall)
+Durable, learned knowledge for your projects lives at `__VAULT_DIR__/knowledge/`
+and is injected into each session automatically by the recall SessionStart hook
+(global index + the current project's index). Read full notes on demand — don't
+bulk-load them.
+
+The nightly distill is the sole writer: treat the vault as read-only during
+sessions, and verify a note still matches reality before relying on it. Anything
+you learn is captured automatically and folded in by distill — never hand-edit
+the vault.
+<!-- END recall -->
+BLOCK
+}
+add_claude_md() {
+  local f="$HOME/.claude/CLAUDE.md"
+  mkdir -p "$(dirname "$f")"
+  [ -f "$f" ] || : > "$f"
+  # Drop any prior recall block (with surrounding blank lines), then append fresh.
+  perl -0pi -e 's/\n*<!-- BEGIN recall -->.*?<!-- END recall -->\n*/\n/s' "$f"
+  { [ -s "$f" ] && printf '\n'; recall_claude_block; } >> "$f"
+  say "added recall section to $f"
+}
+if [ "$DO_CLAUDE_MD" = "no" ]; then
+  :
+elif [ "$DO_CLAUDE_MD" = "yes" ] || \
+     confirm "Add a recall section to your global ~/.claude/CLAUDE.md (so Claude knows about the vault)? [Y/n] " Y; then
+  add_claude_md
+fi
+
+# ---- 8. launchd job ----
 if [ "$DO_LAUNCHD" -eq 1 ]; then
   PLIST_GEN="$REPO_DIR/install/com.recall.distill.generated.plist"
   render "$REPO_DIR/install/com.recall.distill.plist.template" > "$PLIST_GEN"
