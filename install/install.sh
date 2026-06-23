@@ -85,6 +85,7 @@ confirm() { # confirm "question" "Y|N" (default) -> returns 0 (yes) / 1 (no)
   case "$a" in [Yy]*) return 0;; *) return 1;; esac
 }
 expand_tilde() { printf '%s' "${1/#\~/$HOME}"; }
+tilde() { case "$1" in "$HOME"/*) printf '~%s' "${1#$HOME}";; "$HOME") printf '~';; *) printf '%s' "$1";; esac; }
 clock12() { # clock12 H M -> "7:00pm"
   local h="$1" m="$2" ap=am h12="$1"
   [ "$h" -ge 12 ] && ap=pm; [ "$h" -gt 12 ] && h12=$((h-12)); [ "$h" -eq 0 ] && h12=12
@@ -120,12 +121,12 @@ ok "bash $("$BASH_BIN" -c 'echo ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}') ($BASH
 step "Vault"
 if [ -z "$VAULT_DIR" ]; then
   if interactive; then
-    info "recall stores knowledge in a recall/ subfolder of a directory you pick."
-    info "An existing Obsidian vault works great (and syncs alongside your notes)."
-    if confirm "Do you already have an Obsidian vault / folder to use?" Y; then
-      base="$(ask "  Path to it" "$HOME/Documents/Vault")"
+    info "recall keeps its knowledge in a recall/ folder inside a directory you choose."
+    info "An existing Obsidian vault is perfect — it'll sync right alongside your notes."
+    if confirm "Do you already have a vault or folder you'd like to use?" Y; then
+      base="$(ask "Where is it?" "$(tilde "$HOME/Documents/Vault")")"
     else
-      base="$(ask "  Where should I create one?" "$HOME/Documents/Vault")"
+      base="$(ask "Where should recall create it?" "$(tilde "$HOME/Documents/Vault")")"
     fi
     base="$(expand_tilde "$base")"
     VAULT_DIR="$base/recall"
@@ -135,32 +136,33 @@ if [ -z "$VAULT_DIR" ]; then
 fi
 base="$(dirname "$VAULT_DIR")"
 if [ ! -d "$base" ]; then
-  confirm "$base doesn't exist. Create it?" Y || die "aborted"
+  confirm "$(tilde "$base") doesn't exist yet — create it?" Y || die "aborted"
 fi
 mkdir -p "$VAULT_DIR/sessions" \
          "$VAULT_DIR/knowledge/global" \
          "$VAULT_DIR/knowledge/projects" \
          "$VAULT_DIR/inbox"
 [ -f "$VAULT_DIR/inbox/proposals.md" ] || printf '# Proposals\n\n' > "$VAULT_DIR/inbox/proposals.md"
-ok "$VAULT_DIR"
+ok "knowledge vault ready at $(tilde "$VAULT_DIR")"
 
 # ---- 3. git: version + sync the distilled knowledge ----
 step "Git"
 GIT_ROOT="$(git -C "$VAULT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$GIT_ROOT" ]; then
-  ok "already a git repo: $GIT_ROOT"
-  info "(obsidian-git friendly — distill will commit + push here)"
+  ok "tracked by git at $(tilde "$GIT_ROOT")"
+  info "recall will commit + push what it learns here (works with the Obsidian Git plugin)."
 elif [ "$DO_GIT" = "no" ]; then
-  warn "no git repo (--no-git): distill won't version or push knowledge"
+  warn "not a git repo (--no-git): distilled knowledge won't be versioned or synced"
   GIT_ROOT="$VAULT_DIR"
 else
-  info "Not a git repo yet. Versioning lets distill commit + push knowledge."
-  if confirm "Initialize a git repo here? (No if obsidian-git will manage it)" Y; then
-    git -C "$VAULT_DIR" init -q && ok "initialized git repo"
+  info "This folder isn't tracked by git yet. Versioning lets recall save and sync"
+  info "what it learns over time, and roll back if anything looks off."
+  if confirm "Set up git here? (Choose No if the Obsidian Git plugin already manages it)" Y; then
+    git -C "$VAULT_DIR" init -q && ok "git repository created"
     GIT_ROOT="$VAULT_DIR"
   else
     GIT_ROOT="$VAULT_DIR"
-    warn "skipped — set up git / obsidian-git yourself for versioning + sync"
+    warn "skipped — set up git or the Obsidian Git plugin yourself to sync"
   fi
 fi
 if git -C "$GIT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -169,13 +171,14 @@ if git -C "$GIT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     grep -qxF "$pat" "$IGNORE" 2>/dev/null || echo "$pat" >> "$IGNORE"
   done
   git -C "$GIT_ROOT" remote get-url origin >/dev/null 2>&1 \
-    || warn "no 'origin' remote — nightly push is skipped until you add one (or let obsidian-git sync)"
+    || info "no remote set yet — nightly sync starts once you add one (the Obsidian Git plugin can also handle it)."
 fi
 
 # ---- 4. schedule ----
 step "Schedule"
 if [ "$DO_LAUNCHD" -eq 1 ] && interactive; then
-  DISTILL_TIME="$(ask "What time should distill run nightly? (24h HH:MM)" "$DISTILL_TIME")"
+  info "Each night, recall reviews the day's sessions and folds them into your vault."
+  DISTILL_TIME="$(ask "What time should that happen? (24-hour HH:MM)" "$DISTILL_TIME")"
 fi
 case "$DISTILL_TIME" in
   [0-9][0-9]:[0-9][0-9]|[0-9]:[0-9][0-9]) ;;
@@ -185,7 +188,7 @@ HOUR=$((10#${DISTILL_TIME%%:*})); MINUTE=$((10#${DISTILL_TIME##*:}))
 { [ "$HOUR" -ge 0 ] && [ "$HOUR" -le 23 ] && [ "$MINUTE" -ge 0 ] && [ "$MINUTE" -le 59 ]; } \
   || die "invalid time '$DISTILL_TIME' — hour 0-23, minute 0-59"
 SCHED_TXT="nightly · $(clock12 "$HOUR" "$MINUTE")"
-if [ "$DO_LAUNCHD" -eq 1 ]; then ok "$SCHED_TXT"; else info "scheduler skipped (--no-launchd)"; fi
+if [ "$DO_LAUNCHD" -eq 1 ]; then ok "$SCHED_TXT"; else info "no schedule (--no-launchd) — you'll run distill yourself"; fi
 
 # ---- 5. render templates ----
 render() { sed \
@@ -218,8 +221,8 @@ MERGED="$(jq -s '
   )
 ' "$HOOKS_GEN" "$SETTINGS")" || die "jq merge failed — settings.json untouched (backup at $SETTINGS.recall-bak)"
 printf '%s\n' "$MERGED" > "$SETTINGS"
-ok "Stop + SessionStart wired into $SETTINGS"
-info "existing hooks preserved · backup: $SETTINGS.recall-bak"
+ok "capture + retrieval hooks added to Claude Code"
+info "your other hooks were left untouched · backup saved to $(tilde "$SETTINGS").recall-bak"
 
 # ---- 7. global CLAUDE.md guidance (optional, idempotent) ----
 step "Claude guidance"
@@ -243,15 +246,15 @@ add_claude_md() {
   [ -f "$CLAUDE_MD" ] || : > "$CLAUDE_MD"
   perl -0pi -e 's/\n*<!-- BEGIN recall -->.*?<!-- END recall -->\n*/\n/s' "$CLAUDE_MD"
   { [ -s "$CLAUDE_MD" ] && printf '\n'; recall_claude_block; } >> "$CLAUDE_MD"
-  ok "recall section added to $CLAUDE_MD"
+  ok "added a recall note to $(tilde "$CLAUDE_MD")"
 }
 if [ "$DO_CLAUDE_MD" = "no" ]; then
   info "skipped (--no-claude-md)"
 elif [ "$DO_CLAUDE_MD" = "yes" ] || \
-     confirm "Add a recall section to your global ~/.claude/CLAUDE.md?" Y; then
+     confirm "Add a short note to your global CLAUDE.md so Claude knows how to use the vault?" Y; then
   add_claude_md
 else
-  info "skipped"
+  info "skipped — re-run the installer anytime to add it"
 fi
 
 # ---- 8. launchd job ----
@@ -263,21 +266,33 @@ if [ "$DO_LAUNCHD" -eq 1 ]; then
   cp "$PLIST_GEN" "$PLIST_DST"
   launchctl unload "$PLIST_DST" >/dev/null 2>&1 || true
   if launchctl load "$PLIST_DST" >/dev/null 2>&1; then
-    ok "launchd job loaded ($SCHED_TXT)"
+    ok "scheduled — recall will run $SCHED_TXT"
   else
-    warn "could not load launchd job; load it manually: launchctl load $PLIST_DST"
+    warn "couldn't schedule it automatically; load it with: launchctl load $(tilde "$PLIST_DST")"
   fi
 else
-  info "skipped (--no-launchd) · run by hand: $REPO_DIR/distill/run-distill.sh"
+  info "skipped (--no-launchd) · run it yourself with $(tilde "$REPO_DIR")/distill/run-distill.sh"
 fi
 
 # ---- summary ----
-[ "$DO_LAUNCHD" -eq 1 ] && sched_line="$SCHED_TXT" || sched_line="manual"
-[ "$DO_CLAUDE_MD" = "no" ] && cmd_line="(skipped)" || cmd_line="$CLAUDE_MD"
+[ "$DO_LAUNCHD" -eq 1 ] && sched_line="$SCHED_TXT" || sched_line="manual (you run distill)"
+[ "$DO_CLAUDE_MD" = "no" ] && cmd_line="(skipped)" || cmd_line="$(tilde "$CLAUDE_MD")"
+RECALL_CLI="$(tilde "$REPO_DIR")/dashboard/recall.sh"
 printf '\n  %s%s%s\n' "$D" "$RULE" "$R"
-printf '  %s✓ recall is set up%s\n\n' "$GRN$B" "$R"
-printf '    %s%-9s%s %s\n' "$D" "vault" "$R" "$VAULT_DIR"
+printf '  %s✓ recall is ready%s\n\n' "$GRN$B" "$R"
+printf '    %s%-9s%s %s\n' "$D" "vault" "$R" "$(tilde "$VAULT_DIR")"
 printf '    %s%-9s%s %s\n' "$D" "schedule" "$R" "$sched_line"
-printf '    %s%-9s%s %s\n' "$D" "hooks" "$R" "$SETTINGS"
+printf '    %s%-9s%s %s\n' "$D" "hooks" "$R" "$(tilde "$SETTINGS")"
 printf '    %s%-9s%s %s\n' "$D" "guidance" "$R" "$cmd_line"
-printf '\n  %sNext%s  %s%s/dashboard/recall.sh status%s\n\n' "$B" "$R" "$D" "$REPO_DIR" "$R"
+
+printf '\n  %sWhat happens now%s\n' "$B" "$R"
+printf '    %s1.%s Start a new Claude Code session (or restart it) to turn on capture.\n' "$MAG" "$R"
+printf '    %s2.%s Work as usual — recall quietly saves each session.\n' "$MAG" "$R"
+if [ "$DO_LAUNCHD" -eq 1 ]; then
+  printf '    %s3.%s Every night (%s) it distills those sessions into your vault\n' "$MAG" "$R" "$SCHED_TXT"
+  printf '       and feeds what it learns back into future sessions.\n'
+else
+  printf '    %s3.%s Run a distill pass whenever you like: %s%s/distill/run-distill.sh%s\n' "$MAG" "$R" "$D" "$(tilde "$REPO_DIR")" "$R"
+fi
+printf '\n  %sCheck on it anytime%s  %s%s status%s   %s(tip: alias recall=%s)%s\n\n' \
+  "$B" "$R" "$CYN" "$RECALL_CLI" "$R" "$D" "$RECALL_CLI" "$R"
