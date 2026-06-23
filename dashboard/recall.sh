@@ -9,6 +9,7 @@
 #   proposals  pending + implemented skill proposals
 #   distill    last N distill runs (cost, duration, outcome)
 #   open       (re)build the HTML dashboard and open it in the browser
+#   update     git pull the repo + re-apply install (self-update)
 #   all        everything above
 
 set +e
@@ -19,6 +20,9 @@ SESSIONS="$AOS/sessions"
 KNOWLEDGE="$AOS/knowledge"
 LOG="$AOS/.distill.log"
 GIT_ROOT="$(git -C "$AOS" rev-parse --show-toplevel 2>/dev/null || echo "$AOS")"
+REPO_DIR="$(cd "$HERE/.." && pwd)"
+recall_version() { git -C "$REPO_DIR" describe --tags --always --dirty 2>/dev/null || echo unknown; }
+updates_behind() { git -C "$REPO_DIR" rev-list --count HEAD..@{u} 2>/dev/null || echo 0; }
 
 [ -d "$AOS" ] || { echo "recall: vault not found at $AOS" >&2; exit 1; }
 
@@ -26,6 +30,11 @@ GIT_ROOT="$(git -C "$AOS" rev-parse --show-toplevel 2>/dev/null || echo "$AOS")"
 hr() { printf '\n— %s —\n' "$1"; }
 
 cmd_status() {
+  hr "recall"
+  printf "  version  %s\n" "$(recall_version)"
+  local behind; behind=$(updates_behind)
+  [ "${behind:-0}" -gt 0 ] && printf "  update   %s commit(s) behind — run: recall.sh update\n" "$behind"
+
   hr "sessions"
   local total undist
   total=$(ls "$SESSIONS"/*.md 2>/dev/null | wc -l | tr -d ' ')
@@ -140,6 +149,36 @@ cmd_open() {
   command -v open >/dev/null 2>&1 && open "$out"
 }
 
+cmd_update() {
+  hr "update"
+  printf "  repo     %s\n" "$REPO_DIR"
+  printf "  current  %s\n" "$(recall_version)"
+  git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1 \
+    || { echo "  not a git checkout — can't self-update" >&2; return 1; }
+
+  echo "  pulling latest…"
+  git -C "$REPO_DIR" pull --ff-only 2>&1 | sed 's/^/  /'
+  [ "${PIPESTATUS[0]}" -eq 0 ] \
+    || { echo "  pull failed (local changes or diverged?) — resolve in $REPO_DIR" >&2; return 1; }
+
+  # Re-apply install non-interactively using the saved config, so any changed
+  # plist/hooks templates take effect.
+  local conf="$AOS/.recall-install" args
+  args="-y"
+  if [ -f "$conf" ]; then
+    # shellcheck disable=SC1090
+    . "$conf"
+    [ -n "${RECALL_VAULT:-}" ]   && args="$args --vault $RECALL_VAULT"
+    [ -n "${RECALL_TIME:-}" ]    && args="$args --time $RECALL_TIME"
+    [ "${RECALL_LAUNCHD:-1}" = "0" ]   && args="$args --no-launchd"
+    [ "${RECALL_CLAUDE_MD:-1}" = "0" ] && args="$args --no-claude-md"
+  fi
+  echo "  re-applying install…"
+  # shellcheck disable=SC2086
+  "$REPO_DIR/install/install.sh" $args || { echo "  install step failed" >&2; return 1; }
+  printf "  now at   %s\n" "$(recall_version)"
+}
+
 case "${1:-status}" in
   status)     cmd_status ;;
   sessions)   cmd_sessions ;;
@@ -147,7 +186,8 @@ case "${1:-status}" in
   proposals)  cmd_proposals ;;
   distill)    cmd_distill ;;
   open|html)  cmd_open ;;
+  update)     cmd_update ;;
   all)        cmd_status; cmd_sessions; cmd_knowledge; cmd_proposals; cmd_distill ;;
-  -h|--help|help) echo "usage: recall.sh [status|sessions|knowledge|proposals|distill|open|all]" ;;
+  -h|--help|help) echo "usage: recall.sh [status|sessions|knowledge|proposals|distill|open|update|all]" ;;
   *) echo "unknown subcommand: $1" >&2; exit 1 ;;
 esac

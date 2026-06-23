@@ -110,10 +110,26 @@ dashboard/recall.sh knowledge  # notes by area + recent additions
 dashboard/recall.sh proposals  # pending + implemented proposals
 dashboard/recall.sh distill    # recent runs (cost, duration, outcome)
 dashboard/recall.sh open       # rebuild + open the HTML dashboard
+dashboard/recall.sh update     # self-update (git pull + re-apply install)
 dashboard/recall.sh all        # everything
 
 distill/run-distill.sh         # run a distill pass now (instead of waiting for 7pm)
 ```
+
+## Updating
+
+recall runs in place from the clone, so updating is just pulling the latest code
+and re-applying the install (to pick up any changed hook/launchd templates):
+
+```sh
+dashboard/recall.sh update
+```
+
+This does `git pull --ff-only` then re-runs `install.sh` non-interactively using
+the settings saved at install time (`<vault>/.recall-install`). The installed
+version is shown by `recall.sh status` and in the dashboard footer; when your
+clone is behind its remote, both surface an "update available" hint (the nightly
+distill refreshes that check).
 
 ## Vault layout
 

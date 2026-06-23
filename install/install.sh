@@ -167,7 +167,7 @@ else
 fi
 if git -C "$GIT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   IGNORE="$GIT_ROOT/.gitignore"
-  for pat in ".distill-scratch/" ".distill.lock/" ".distill.log" ".distill.launchd.log"; do
+  for pat in ".distill-scratch/" ".distill.lock/" ".distill.log" ".distill.launchd.log" ".recall-install"; do
     grep -qxF "$pat" "$IGNORE" 2>/dev/null || echo "$pat" >> "$IGNORE"
   done
   git -C "$GIT_ROOT" remote get-url origin >/dev/null 2>&1 \
@@ -249,12 +249,12 @@ add_claude_md() {
   ok "added a recall note to $(tilde "$CLAUDE_MD")"
 }
 if [ "$DO_CLAUDE_MD" = "no" ]; then
-  info "skipped (--no-claude-md)"
+  info "skipped (--no-claude-md)"; CLAUDE_MD_ON=0
 elif [ "$DO_CLAUDE_MD" = "yes" ] || \
      confirm "Add a short note to your global CLAUDE.md so Claude knows how to use the vault?" Y; then
-  add_claude_md
+  add_claude_md; CLAUDE_MD_ON=1
 else
-  info "skipped — re-run the installer anytime to add it"
+  info "skipped — re-run the installer anytime to add it"; CLAUDE_MD_ON=0
 fi
 
 # ---- 8. launchd job ----
@@ -273,6 +273,16 @@ if [ "$DO_LAUNCHD" -eq 1 ]; then
 else
   info "skipped (--no-launchd) · run it yourself with $(tilde "$REPO_DIR")/distill/run-distill.sh"
 fi
+
+# ---- persist config so `recall.sh update` can re-apply non-interactively ----
+{
+  echo "# written by recall install.sh — read by 'recall.sh update'. Safe to delete."
+  echo "RECALL_REPO_DIR=$REPO_DIR"
+  echo "RECALL_VAULT=$VAULT_DIR"
+  echo "RECALL_TIME=$DISTILL_TIME"
+  echo "RECALL_LAUNCHD=$DO_LAUNCHD"
+  echo "RECALL_CLAUDE_MD=$CLAUDE_MD_ON"
+} > "$VAULT_DIR/.recall-install"
 
 # ---- summary ----
 [ "$DO_LAUNCHD" -eq 1 ] && sched_line="$SCHED_TXT" || sched_line="manual (you run distill)"

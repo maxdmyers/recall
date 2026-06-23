@@ -7,6 +7,10 @@
 set -uo pipefail
 
 AOS="${RECALL_VAULT:-$HOME/Documents/Vault/recall}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$HERE/.." && pwd)"
+VERSION="$(git -C "$REPO_DIR" describe --tags --always --dirty 2>/dev/null || echo unknown)"
+BEHIND="$(git -C "$REPO_DIR" rev-list --count HEAD..@{u} 2>/dev/null || echo 0)"; BEHIND="${BEHIND:-0}"
 SESS="$AOS/sessions"
 KN="$AOS/knowledge"
 PROP="$AOS/inbox/proposals.md"
@@ -80,6 +84,13 @@ if [ -f "$PLIST" ]; then
     [ "$shh" -eq 0 ] && h12=12
     CADENCE="nightly · ${h12}:$(printf '%02d' "${smm:-0}")${ampm}"
   fi
+fi
+
+# Update hint: shown only when the local clone is behind its remote (no network;
+# uses the last-fetched ref — the nightly distill refreshes it).
+UPDATE_ROW=""
+if [ "$BEHIND" -gt 0 ] 2>/dev/null; then
+  UPDATE_ROW="<div class=\"area\"><span class=\"al\">update</span><span style=\"flex:1\"></span><span class=\"ac\" style=\"width:auto;color:var(--amber)\">$BEHIND behind · recall.sh update</span></div>"
 fi
 
 # ---------- recent sessions ----------
@@ -302,12 +313,13 @@ cat > "$OUT" <<EOF
         <div class="area"><span class="al">status</span><span style="flex:1"></span><span class="ac" style="width:auto"><span class="pill $HEALTH_CLS"><span class="dot"></span>$HEALTH_TXT</span></span></div>
         <div class="area"><span class="al">last run</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">$LAST_DONE_REL</span></div>
         <div class="area"><span class="al">cadence</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">$(esc "$CADENCE")</span></div>
+        $UPDATE_ROW
         <div class="logline">$(esc "${LAST_LINE:-no log yet}")</div>
       </div>
     </div>
   </div>
 
-  <footer>recall · capture → distill → retrieve → gate · generated $GEN</footer>
+  <footer>recall $VERSION · capture → distill → retrieve → gate · generated $GEN</footer>
 </div>
 </body>
 </html>

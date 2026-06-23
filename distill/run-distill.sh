@@ -39,6 +39,10 @@ export RECALL_DISTILL=1   # stops the capture hook logging our own claude run
 cd "$GIT_ROOT" || { log "no vault at $GIT_ROOT"; exit 1; }
 git pull --rebase --autostash -q 2>>"$LOG" || log "warn: git pull failed"
 
+# Refresh the code repo's remote-tracking ref so the dashboard's "update available"
+# hint stays current (fetch only — no checkout). Non-fatal.
+git -C "$HERE/.." fetch -q 2>>"$LOG" || log "warn: repo fetch failed"
+
 # Refresh the dashboard every night (cheap, pure shell) — even if we skip
 # distilling below, so queue count + schedule health stay current.
 "$HERE/../dashboard/build-dashboard.sh" >>"$LOG" 2>&1 || log "warn: dashboard build failed"
