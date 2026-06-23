@@ -50,8 +50,8 @@ S_UNDIST=$(grep -rl '^distilled: false' "$SESS" 2>/dev/null | wc -l | tr -d ' ')
 S_DIST=$(( S_TOTAL - S_UNDIST ))
 N_NOTES=$(find "$KN" -name '*.md' ! -name 'INDEX.md' 2>/dev/null | wc -l | tr -d ' ')
 N_PROJ=$(find "$KN/projects" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-P_TOTAL=$(grep -c '^## ' "$PROP" 2>/dev/null || echo 0)
-P_IMPL=$(grep -c 'status:.*implemented' "$PROP" 2>/dev/null || echo 0)
+P_TOTAL=$(grep -c '^## ' "$PROP" 2>/dev/null); P_TOTAL=${P_TOTAL:-0}
+P_IMPL=$(grep -c 'status:.*implemented' "$PROP" 2>/dev/null); P_IMPL=${P_IMPL:-0}
 P_PEND=$(( P_TOTAL - P_IMPL ))
 
 # ---------- schedule ----------
@@ -64,6 +64,23 @@ LAST_LINE=$(tail -1 "$LOG" 2>/dev/null)
 if [ "$J_EXIT" = "0" ]; then HEALTH_CLS="ok"; HEALTH_TXT="healthy";
 elif [ "$J_EXIT" = "?" ]; then HEALTH_CLS="warn"; HEALTH_TXT="not loaded";
 else HEALTH_CLS="bad"; HEALTH_TXT="exit $J_EXIT"; fi
+
+# Cadence: read the actual schedule from the installed launchd plist so the
+# dashboard never lies about when distill runs. Falls back to "nightly".
+CADENCE="nightly"
+PLIST="$HOME/Library/LaunchAgents/com.recall.distill.plist"
+if [ -f "$PLIST" ]; then
+  PB=/usr/libexec/PlistBuddy
+  shh=$("$PB" -c 'Print :StartCalendarInterval:Hour' "$PLIST" 2>/dev/null)
+  smm=$("$PB" -c 'Print :StartCalendarInterval:Minute' "$PLIST" 2>/dev/null)
+  if [ -n "$shh" ]; then
+    ampm=am; h12=$shh
+    [ "$shh" -ge 12 ] && ampm=pm
+    [ "$shh" -gt 12 ] && h12=$(( shh - 12 ))
+    [ "$shh" -eq 0 ] && h12=12
+    CADENCE="nightly · ${h12}:$(printf '%02d' "${smm:-0}")${ampm}"
+  fi
+fi
 
 # ---------- recent sessions ----------
 SESSION_ROWS=""
@@ -284,7 +301,7 @@ cat > "$OUT" <<EOF
         <h2>Distill schedule</h2>
         <div class="area"><span class="al">status</span><span style="flex:1"></span><span class="ac" style="width:auto"><span class="pill $HEALTH_CLS"><span class="dot"></span>$HEALTH_TXT</span></span></div>
         <div class="area"><span class="al">last run</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">$LAST_DONE_REL</span></div>
-        <div class="area"><span class="al">cadence</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">nightly · 7pm</span></div>
+        <div class="area"><span class="al">cadence</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">$(esc "$CADENCE")</span></div>
         <div class="logline">$(esc "${LAST_LINE:-no log yet}")</div>
       </div>
     </div>

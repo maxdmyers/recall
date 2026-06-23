@@ -40,27 +40,47 @@ capture (Stop hook) ──▶ vault/sessions ──▶ distill (nightly) ──�
 
 ## Install
 
+Clone the repo **anywhere you like** — `~/Sites/recall` below is just an example;
+`~/dev/recall`, `~/code/recall`, etc. are all fine. The installer locates itself,
+so the repo path is never hardcoded.
+
 ```sh
-git clone <this-repo> ~/Sites/recall
+git clone <this-repo> ~/Sites/recall   # or wherever you prefer
 cd ~/Sites/recall
-./install/install.sh
+./install/install.sh                    # interactive
 ```
 
-The installer (safe to re-run) will:
+The installer is **interactive** and will ask:
 
-- check dependencies and locate your Homebrew bash,
-- scaffold the vault at `~/Documents/Vault/recall` (override with `--vault DIR`),
-- `git init` the vault if it isn't already in a repo, and add runner scratch/log
-  files to its `.gitignore`,
-- merge the two hooks into `~/.claude/settings.json` **without** disturbing any
-  existing hooks (a backup is written to `settings.json.recall-bak`),
-- render and load the nightly distill launchd job (7pm).
+- **where the vault lives** — point it at an existing Obsidian vault (recall lives
+  in a `recall/` subfolder, syncing alongside your notes) or let it create one;
+- **whether to init git** — only if the chosen directory isn't already a repo, and
+  it offers to skip if you manage git via the **obsidian-git** plugin instead;
+- **what time distill runs** — defaults to 19:00 (7pm).
 
-Options: `--vault DIR` to put the vault elsewhere, `--no-launchd` to skip the
-scheduler (run distill by hand instead).
+It then checks dependencies, scaffolds the vault, merges the two hooks into
+`~/.claude/settings.json` **without** disturbing existing hooks (backup written to
+`settings.json.recall-bak`), and loads the launchd job. Safe to re-run.
 
-> The vault should have a git `origin` remote if you want knowledge synced across
-> machines — the nightly job commits and pushes. Without a remote, push is skipped.
+Non-interactive / scripted installs:
+
+```sh
+./install/install.sh -y                 # accept all defaults, no prompts
+./install/install.sh --vault ~/notes/recall --time 22:30
+./install/install.sh --no-git --no-launchd
+```
+
+| Flag | Effect |
+|---|---|
+| `-y`, `--yes` | No prompts; accept defaults. |
+| `--vault DIR` | Set the recall data dir explicitly (skips the vault question). |
+| `--time HH:MM` | Nightly distill time, 24h. |
+| `--no-git` | Never `git init` the vault. |
+| `--no-launchd` | Skip the scheduler (run distill by hand). |
+
+> For knowledge to sync across machines the vault needs a git `origin` remote (the
+> nightly job commits + pushes) — or let the obsidian-git plugin handle sync.
+> Without either, distilled knowledge is still saved locally.
 
 ## Configuration
 

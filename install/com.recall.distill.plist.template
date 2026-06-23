@@ -12,11 +12,11 @@
     <string>__REPO_DIR__/distill/run-distill.sh</string>
   </array>
 
-  <!-- 7:00 PM daily. launchd runs missed jobs on next wake if the Mac was asleep. -->
+  <!-- Daily at the chosen time. launchd runs missed jobs on next wake if asleep. -->
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Hour</key><integer>19</integer>
-    <key>Minute</key><integer>0</integer>
+    <key>Hour</key><integer>__HOUR__</integer>
+    <key>Minute</key><integer>__MINUTE__</integer>
   </dict>
 
   <!-- launchd has a minimal env; give it the binaries the runner needs. -->
