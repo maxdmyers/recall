@@ -40,6 +40,17 @@ row()  { printf '    %s\n' "$1"; }
 note() { printf '    %s%s%s\n' "$D" "$1" "$R"; }
 # colorize a count: plain if zero, color $2 if nonzero
 hot()  { if [ "${1:-0}" -gt 0 ] 2>/dev/null; then printf '%s%s%s' "$2" "$1" "$R"; else printf '%s' "${1:-0}"; fi; }
+# aligned two-column sub-table from "name<TAB>value" lines on stdin:
+# auto-sizes the label column to the longest name, right-aligns the values.
+table() {
+  local maxn=3 i; local names=() vals=() _n _v
+  while IFS=$'\t' read -r _n _v; do
+    names+=("$_n"); vals+=("$_v"); [ "${#_n}" -gt "$maxn" ] && maxn=${#_n}
+  done
+  for i in "${!names[@]}"; do
+    printf '      %s%-*s%s  %3s\n' "$D" "$maxn" "${names[$i]}" "$R" "${vals[$i]}"
+  done
+}
 
 [ -d "$AOS" ] || { printf '%srecall:%s vault not found at %s\n' "$RED" "$R" "$AOS" >&2; exit 1; }
 
@@ -61,13 +72,14 @@ cmd_status() {
   local notes
   notes=$(find "$KNOWLEDGE" -name '*.md' -not -name 'INDEX.md' 2>/dev/null | wc -l | tr -d ' ')
   kv "notes" "$notes"
-  for d in "$KNOWLEDGE/global" "$KNOWLEDGE/projects"/*; do
-    [ -d "$d" ] || continue
-    local rel n
-    rel="${d#$KNOWLEDGE/}"
-    n=$(find "$d" -name '*.md' -not -name 'INDEX.md' 2>/dev/null | wc -l | tr -d ' ')
-    printf '    %s%-22s%s %s\n' "$D" "$rel" "$R" "$n"
-  done
+  {
+    for d in "$KNOWLEDGE/global" "$KNOWLEDGE/projects"/*; do
+      [ -d "$d" ] || continue
+      rel="${d#$KNOWLEDGE/}"
+      n=$(find "$d" -name '*.md' -not -name 'INDEX.md' 2>/dev/null | wc -l | tr -d ' ')
+      printf '%s\t%s\n' "$rel" "$n"
+    done
+  } | table
 
   hr "Distill"
   local jobline exit_ health last_line
@@ -123,13 +135,14 @@ cmd_sessions() {
 
 cmd_knowledge() {
   hr "Notes by area"
-  for d in "$KNOWLEDGE/global" "$KNOWLEDGE/projects"/*; do
-    [ -d "$d" ] || continue
-    local rel n
-    rel="${d#$KNOWLEDGE/}"
-    n=$(find "$d" -name '*.md' -not -name 'INDEX.md' 2>/dev/null | wc -l | tr -d ' ')
-    printf '    %s%-22s%s %s\n' "$D" "$rel" "$R" "$n"
-  done
+  {
+    for d in "$KNOWLEDGE/global" "$KNOWLEDGE/projects"/*; do
+      [ -d "$d" ] || continue
+      rel="${d#$KNOWLEDGE/}"
+      n=$(find "$d" -name '*.md' -not -name 'INDEX.md' 2>/dev/null | wc -l | tr -d ' ')
+      printf '%s\t%s\n' "$rel" "$n"
+    done
+  } | table
 
   hr "Recently updated"
   find "$KNOWLEDGE" -name '*.md' -not -name 'INDEX.md' -exec stat -f '%m %N' {} \; 2>/dev/null \
