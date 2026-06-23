@@ -1,0 +1,27 @@
+{
+  "_comment": "Hook entries recall needs in ~/.claude/settings.json. install.sh merges these into your existing hooks block (it does NOT replace settings.json — other hooks are preserved). __REPO_DIR__ is substituted with this repo's absolute path at install time.",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__REPO_DIR__/hooks/capture-session.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__REPO_DIR__/hooks/inject-knowledge.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

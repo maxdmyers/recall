@@ -1,51 +1,134 @@
 # recall
 
-A self-improving layer for Claude Code: it learns from sessions, retains knowledge
-in an Obsidian vault, and proposes skills/automations from recurring patterns.
+A self-improving layer for Claude Code: it learns from your sessions, retains
+knowledge in a vault, and proposes skills/automations from recurring patterns.
 
-This repo holds the **machinery** (hooks, distill prompt + runner, install config).
-The **knowledge** lives in a separate Obsidian vault, partitioned by project.
+This repo holds the **machinery** (hooks, distill prompt + runner, dashboard,
+install config). The **knowledge** lives in a separate vault directory,
+partitioned by project — kept out of this repo entirely.
+
+```
+capture (Stop hook) ──▶ vault/sessions ──▶ distill (nightly) ──▶ vault/knowledge
+                                                       │
+        retrieve (SessionStart hook) ◀────────────────┘
+                                                       └──▶ inbox/proposals.md ──▶ you approve ──▶ skills
+```
+
+## How it works
+
+1. **Capture** — `hooks/capture-session.sh`, wired to Claude Code's `Stop` hook.
+   On each session end it writes a raw dump (cwd, project, git diff stat,
+   transcript pointer) to the vault. Pure shell + jq, ~zero tokens, never blocks.
+2. **Distill** — `distill/run-distill.sh`, a nightly launchd job. Thins each new
+   transcript, runs a headless Claude pass to update `knowledge/`, refreshes the
+   indexes, and appends pattern observations to `inbox/proposals.md`. Skips (costs
+   $0) when there's nothing new.
+3. **Retrieve** — `hooks/inject-knowledge.sh`, wired to the `SessionStart` hook.
+   Injects the global + per-project knowledge indexes as background context so
+   they survive `/clear` and auto-compact.
+4. **Gate** — distill only *proposes* into `inbox/proposals.md`. Nothing
+   auto-promotes to a skill until you approve it.
+5. **Dashboard** — `dashboard/recall.sh` (status CLI) and `build-dashboard.sh`
+   (self-contained HTML). `recall.sh open` rebuilds and opens it.
+
+## Prerequisites
+
+- **macOS** (the scheduler uses launchd; the scripts assume BSD `date`/`stat`).
+- **[Claude Code](https://claude.com/claude-code)** — the `claude` CLI on your `PATH`.
+- **Homebrew bash 4+** — `brew install bash` (system `/bin/bash` is 3.2 and lacks `mapfile`).
+- **jq**, **git**, **perl** — `jq` via `brew install jq`; `git`/`perl` ship with macOS.
+
+## Install
+
+```sh
+git clone <this-repo> ~/Sites/recall
+cd ~/Sites/recall
+./install/install.sh
+```
+
+The installer (safe to re-run) will:
+
+- check dependencies and locate your Homebrew bash,
+- scaffold the vault at `~/Documents/Vault/recall` (override with `--vault DIR`),
+- `git init` the vault if it isn't already in a repo, and add runner scratch/log
+  files to its `.gitignore`,
+- merge the two hooks into `~/.claude/settings.json` **without** disturbing any
+  existing hooks (a backup is written to `settings.json.recall-bak`),
+- render and load the nightly distill launchd job (7pm).
+
+Options: `--vault DIR` to put the vault elsewhere, `--no-launchd` to skip the
+scheduler (run distill by hand instead).
+
+> The vault should have a git `origin` remote if you want knowledge synced across
+> machines — the nightly job commits and pushes. Without a remote, push is skipped.
+
+## Configuration
+
+All optional — sensible defaults apply.
+
+| Variable | Default | What |
+|---|---|---|
+| `RECALL_VAULT` | `~/Documents/Vault/recall` | Vault data dir (sessions, knowledge, inbox). |
+| `RECALL_DISTILL_THRESHOLD` | `1` | Min undistilled sessions before a nightly run does work. |
+| `RECALL_DISTILL_MODEL` | `sonnet` | Model for the distill pass. |
+| `RECALL_DISTILL_BUDGET` | `1.50` | Max USD per distill run. |
+| `RECALL_DISTILL_STALE_MIN` | `30` | Skip sessions touched within this many minutes (still active). |
+
+The installer bakes `RECALL_VAULT` into the launchd plist, so a custom `--vault`
+is respected by the nightly job. For the hooks/CLI to use a custom vault in your
+interactive shell, export `RECALL_VAULT` in your shell profile.
+
+## Usage
+
+```sh
+dashboard/recall.sh            # overall health (default)
+dashboard/recall.sh sessions   # per-project session breakdown
+dashboard/recall.sh knowledge  # notes by area + recent additions
+dashboard/recall.sh proposals  # pending + implemented proposals
+dashboard/recall.sh distill    # recent runs (cost, duration, outcome)
+dashboard/recall.sh open       # rebuild + open the HTML dashboard
+dashboard/recall.sh all        # everything
+
+distill/run-distill.sh         # run a distill pass now (instead of waiting for 7pm)
+```
+
+## Vault layout
+
+```
+<RECALL_VAULT>/                 default: ~/Documents/Vault/recall
+  sessions/                     raw dumps, tagged by project
+  knowledge/
+    global/        <topic>.md   cross-project
+    projects/<proj>/<topic>.md  project-specific
+  inbox/proposals.md            skill/automation candidates (you approve)
+  dashboard.html                generated dashboard
+```
+
+## Scoping: global + per-project
+
+Knowledge and skills land at the narrowest scope that fits, and promote to global
+only when a pattern generalizes.
+
+- Pattern in **one** project → project-local skill (`<proj>/.claude/skills/`)
+- Pattern across **≥2** projects → global skill (`~/.claude/skills/`)
 
 ## Design decisions (locked)
 
 | Decision | Choice | Why |
 |---|---|---|
-| Knowledge store | **Hybrid** | Tiny always-on native index → on-demand vault reads. Flat per-session token cost as knowledge grows. |
+| Knowledge store | **Hybrid** | Tiny always-on index → on-demand vault reads. Flat per-session token cost as knowledge grows. |
 | Capture | **Auto Stop hook, raw dump** | Pure shell, no LLM call (~zero tokens), never forgets. Summarizing deferred to distill. |
 | Automation gate | **Human-approval** | Distill only *proposes* into an inbox. Nothing auto-promotes until trusted. |
-| First build | **Memory + learning core** | capture → distill → vault. Everything else needs accrued data first. |
 | Project identity | **git repo root**, else launch dir | Subdirs of one repo = same project; loose folders scoped to launch dir. |
 
-## Scoping: global + per-project
+## Uninstall
 
-Knowledge and skills land at the narrowest scope that fits, promote to global only
-when a pattern generalizes.
-
-- Pattern in **one** project → project-local skill (`<proj>/.claude/skills/`)
-- Pattern across **≥2** projects → global skill (`~/.claude/skills/`)
-
-## Components
-
-1. **Capture** — `hooks/capture-session.sh`, wired to Claude Code `Stop` hook. Writes a
-   raw session dump (cwd, project, git diff stat, transcript pointer) to the vault.
-2. **Distill** — `distill/` prompt + runner. **Local** cron/launchd job (needs to read
-   `~/.claude/projects` transcripts + write the vault). Updates `knowledge/`, refreshes
-   the native index, appends pattern observations to `inbox/proposals.md`.
-3. **Retrieve** — two-tier native index: global `MEMORY.md` (every session) +
-   per-project index (only in that project).
-4. **Gate** — manual approval of `inbox/proposals.md` → skills / automations.
-
-## Vault layout
-
-```
-<vault>/recall/
-  sessions/                       raw dumps, tagged by project
-  knowledge/
-    global/        <topic>.md     cross-project
-    projects/<proj>/<topic>.md    project-specific
-  inbox/proposals.md              skill/automation candidates (you approve)
+```sh
+launchctl unload ~/Library/LaunchAgents/com.recall.distill.plist
+rm ~/Library/LaunchAgents/com.recall.distill.plist
+# then remove the two recall entries from ~/.claude/settings.json
+# (restore ~/.claude/settings.json.recall-bak if you want the pre-install state)
 ```
 
-## Status
-
-Scaffolding. Capture hook next.
+The vault is never touched by uninstall — delete `~/Documents/Vault/recall`
+yourself if you want the captured data gone.

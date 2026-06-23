@@ -6,8 +6,7 @@
 
 set -uo pipefail
 
-VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
-AOS="$VAULT/recall"
+AOS="${RECALL_VAULT:-$HOME/Documents/Vault/recall}"
 SESS="$AOS/sessions"
 KN="$AOS/knowledge"
 PROP="$AOS/inbox/proposals.md"

@@ -15,11 +15,13 @@ fi
 
 set -uo pipefail
 
-VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
-AOS="$VAULT/recall"
+AOS="${RECALL_VAULT:-$HOME/Documents/Vault/recall}"
 SESSIONS="$AOS/sessions"
-SCRATCH="$VAULT/.distill-scratch"
-LOCK="$VAULT/.distill.lock"
+# Git lives at the enclosing repo root — recall may be its own repo or nested
+# inside a larger vault. Fall back to the recall dir if it isn't a repo yet.
+GIT_ROOT="$(git -C "$AOS" rev-parse --show-toplevel 2>/dev/null || echo "$AOS")"
+SCRATCH="$GIT_ROOT/.distill-scratch"
+LOCK="$GIT_ROOT/.distill.lock"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 THRESHOLD="${RECALL_DISTILL_THRESHOLD:-1}"
 MODEL="${RECALL_DISTILL_MODEL:-sonnet}"
@@ -34,7 +36,7 @@ trap 'rm -rf "$LOCK" "$SCRATCH"' EXIT
 
 export RECALL_DISTILL=1   # stops the capture hook logging our own claude run
 
-cd "$VAULT" || { log "no vault at $VAULT"; exit 1; }
+cd "$GIT_ROOT" || { log "no vault at $GIT_ROOT"; exit 1; }
 git pull --rebase --autostash -q 2>>"$LOG" || log "warn: git pull failed"
 
 # Refresh the dashboard every night (cheap, pure shell) — even if we skip
@@ -72,7 +74,7 @@ if claude -p "$PROMPT" \
     --model "$MODEL" \
     --permission-mode acceptEdits \
     --allowedTools "Read Write Edit Glob Grep" \
-    --add-dir "$VAULT" \
+    --add-dir "$GIT_ROOT" \
     --max-budget-usd "$BUDGET" \
     --output-format json >>"$LOG" 2>&1; then
   log "distill ok"

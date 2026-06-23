@@ -14,11 +14,11 @@
 set +e
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
-AOS="$VAULT/recall"
+AOS="${RECALL_VAULT:-$HOME/Documents/Vault/recall}"
 SESSIONS="$AOS/sessions"
 KNOWLEDGE="$AOS/knowledge"
 LOG="$AOS/.distill.log"
+GIT_ROOT="$(git -C "$AOS" rev-parse --show-toplevel 2>/dev/null || echo "$AOS")"
 
 [ -d "$AOS" ] || { echo "recall: vault not found at $AOS" >&2; exit 1; }
 
@@ -63,8 +63,8 @@ cmd_status() {
 
   hr "vault git"
   local dirty unpushed
-  dirty=$(git -C "$VAULT" status --short 2>/dev/null | wc -l | tr -d ' ')
-  unpushed=$(git -C "$VAULT" log @{u}.. --oneline 2>/dev/null | wc -l | tr -d ' ')
+  dirty=$(git -C "$GIT_ROOT" status --short 2>/dev/null | wc -l | tr -d ' ')
+  unpushed=$(git -C "$GIT_ROOT" log @{u}.. --oneline 2>/dev/null | wc -l | tr -d ' ')
   printf "  dirty %s file(s)  |  unpushed %s commit(s)\n" "$dirty" "$unpushed"
 }
 
@@ -124,7 +124,7 @@ cmd_distill() {
   grep -E ' done$| FAILED| skip:| nothing changed' "$LOG" 2>/dev/null | tail -10 | sed 's/^/  /'
 
   hr "cost breakdown"
-  grep '^{' "$LOG" 2>/dev/null | /usr/bin/jq -s -r '
+  grep '^{' "$LOG" 2>/dev/null | jq -s -r '
     if length == 0 then "  (no completed runs yet)"
     else
       "  runs \(length)  |  total $\((map(.total_cost_usd) | add) | . * 10000 | round / 10000)  |  avg $\(((map(.total_cost_usd) | add) / length) * 10000 | round / 10000)",

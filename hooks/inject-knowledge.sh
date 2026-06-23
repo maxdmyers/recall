@@ -8,8 +8,8 @@
 
 set +e  # never die
 
-VAULT="${RECALL_VAULT:-$HOME/Documents/Vault}"
-KNOWLEDGE="$VAULT/recall/knowledge"
+VAULT="${RECALL_VAULT:-$HOME/Documents/Vault/recall}"
+KNOWLEDGE="$VAULT/knowledge"
 [ -d "$KNOWLEDGE" ] || exit 0
 
 # Project = git root basename, else cwd basename. Matches capture-session.sh.
@@ -61,11 +61,11 @@ CTX=$(
 # Read the hook event name from stdin (SessionStart for all sources). Default
 # to SessionStart if stdin parse fails — the value is informational only.
 STDIN_JSON=$(cat 2>/dev/null)
-EVENT=$(printf '%s' "$STDIN_JSON" | /usr/bin/jq -r '.hook_event_name // "SessionStart"' 2>/dev/null)
+EVENT=$(printf '%s' "$STDIN_JSON" | jq -r '.hook_event_name // "SessionStart"' 2>/dev/null)
 [ -z "$EVENT" ] && EVENT="SessionStart"
 
 # Emit JSON with additionalContext. jq -R -s --arg handles all escaping safely.
-printf '%s' "$CTX" | /usr/bin/jq -R -s --arg event "$EVENT" \
+printf '%s' "$CTX" | jq -R -s --arg event "$EVENT" \
   '{hookSpecificOutput: {hookEventName: $event, additionalContext: .}}'
 
 exit 0
