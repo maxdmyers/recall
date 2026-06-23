@@ -152,3 +152,23 @@ rm ~/Library/LaunchAgents/com.recall.distill.plist
 
 The vault is never touched by uninstall — delete `~/Documents/Vault/recall`
 yourself if you want the captured data gone.
+
+## Inspiration
+
+recall was inspired by Andrej Karpathy's
+[**LLM Wiki**](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):
+the idea that instead of re-deriving answers from raw sources every time, an LLM
+should incrementally maintain a *persistent, compounding* markdown knowledge base —
+cross-referenced notes that build up over time, with the tedious bookkeeping left
+to the model.
+
+recall applies that loop to Claude Code, with the same three layers Karpathy
+describes — **raw sources → wiki → schema**:
+
+- **raw sources** → captured session dumps (`sessions/`)
+- **the wiki** → the distilled, cross-linked (`[[...]]`) knowledge vault (`knowledge/`)
+- **the schema** → the distill prompt + indexes that govern how the wiki is maintained
+
+The nightly **distill** pass is what does the bookkeeping: reading the day's raw
+sessions and folding them into the wiki so each new session starts from accumulated
+knowledge rather than cold.
