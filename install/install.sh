@@ -294,5 +294,5 @@ if [ "$DO_LAUNCHD" -eq 1 ]; then
 else
   printf '    %s3.%s Run a distill pass whenever you like: %s%s/distill/run-distill.sh%s\n' "$MAG" "$R" "$D" "$(tilde "$REPO_DIR")" "$R"
 fi
-printf '\n  %sCheck on it anytime%s  %s%s status%s   %s(tip: alias recall=%s)%s\n\n' \
-  "$B" "$R" "$CYN" "$RECALL_CLI" "$R" "$D" "$RECALL_CLI" "$R"
+printf '\n  %sCheck on it anytime%s  %s%s status%s\n' "$B" "$R" "$CYN" "$RECALL_CLI" "$R"
+printf '  %stip — add an alias:%s alias recall=%s\n\n' "$D" "$R" "$RECALL_CLI"
