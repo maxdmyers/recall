@@ -143,7 +143,10 @@ done < <(
 )
 
 # ---------- proposals (the inbox) ----------
-PROP_CARDS=""
+# Order: pending first, then implemented — each newest-first. proposals.md is
+# appended chronologically, so prepending each card reverses to newest-first.
+PEND_CARDS=""
+IMPL_CARDS=""
 while IFS=$'\t' read -r name seen what scope conf st; do
   [ -z "$name" ] && continue
   case "$st" in
@@ -151,7 +154,8 @@ while IFS=$'\t' read -r name seen what scope conf st; do
     *) scls="pending"; slabel="awaiting approval";;
   esac
   case "$conf" in high) ccls="c-high";; med) ccls="c-med";; *) ccls="c-low";; esac
-  PROP_CARDS="$PROP_CARDS<div class=\"prop $scls\"><div class=\"ph\"><span class=\"pname\">$(esc "$(nobt "$name")")</span><span class=\"pst $scls\">$slabel</span></div><div class=\"pwhat\">$(esc "$(nobt "$what")")</div><div class=\"pmeta\"><span class=\"tag\">$(esc "$scope")</span><span class=\"tag\"><span class=\"dot $ccls\"></span>$(esc "$conf") confidence</span><span class=\"tag faint\">$(esc "$seen")</span></div></div>"
+  card="<div class=\"prop $scls\"><div class=\"ph\"><span class=\"pname\">$(esc "$(nobt "$name")")</span><span class=\"pst $scls\">$slabel</span></div><div class=\"pwhat\">$(esc "$(nobt "$what")")</div><div class=\"pmeta\"><span class=\"tag\">$(esc "$scope")</span><span class=\"tag\"><span class=\"dot $ccls\"></span>$(esc "$conf") confidence</span><span class=\"tag faint\">$(esc "$seen")</span></div></div>"
+  if [ "$scls" = "done" ]; then IMPL_CARDS="$card$IMPL_CARDS"; else PEND_CARDS="$card$PEND_CARDS"; fi
 done < <(
   awk '
     function flush(){ if(n!=""){ printf "%s\t%s\t%s\t%s\t%s\t%s\n", n,seen,what,scope,conf,st } }
@@ -164,6 +168,7 @@ done < <(
     END{ flush() }
   ' "$PROP" 2>/dev/null
 )
+PROP_CARDS="$PEND_CARDS$IMPL_CARDS"
 [ -n "$PROP_CARDS" ] || PROP_CARDS='<div class="empty">inbox empty — no proposals yet</div>'
 
 # ---------- knowledge by area ----------
