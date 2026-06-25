@@ -52,7 +52,11 @@ skills/automations when you notice repeated work. Be terse. Quality over volume.
    - [[note-name]] — <one-line summary>
    - [[note-name]] — <one-line summary>
    ```
-   Keep entries tight; each line costs tokens every time it's auto-injected.
+   Keep entries tight; each line costs tokens every time it's auto-injected. Hard
+   guidance: keep every INDEX.md well under **200 lines / 25KB** — that's the
+   SessionStart injection budget, and anything past it is truncated before it
+   reaches Claude. If an index nears the limit, tighten summaries or split
+   rarely-used notes into a linked sub-index rather than letting it grow unbounded.
 
 ## Rules
 - Append/merge; never delete a human's note. Don't touch `.distill-scratch/` or session files.

@@ -96,6 +96,8 @@ All optional — sensible defaults apply.
 | `RECALL_DISTILL_MODEL` | `sonnet` | Model for the distill pass. |
 | `RECALL_DISTILL_BUDGET` | `1.50` | Max USD per distill run. |
 | `RECALL_DISTILL_STALE_MIN` | `30` | Skip sessions touched within this many minutes (still active). |
+| `RECALL_INJECT_MAX_LINES` | `200` | Cap on lines of knowledge injected per session (mirrors Claude Code memory). |
+| `RECALL_INJECT_MAX_BYTES` | `25600` | Cap on bytes injected per session; overflow is truncated with a visible marker. |
 
 The installer bakes `RECALL_VAULT` into the launchd plist, so a custom `--vault`
 is respected by the nightly job. For the hooks/CLI to use a custom vault in your

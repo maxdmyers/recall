@@ -54,9 +54,22 @@ CTX=$(
     done
     [ "$found" -eq 1 ] && echo
   fi
-
-  echo "</recall-knowledge>"
 )
+
+# Enforce an injection budget so a large index can't bloat every session's
+# context. Mirrors Claude Code's auto-memory cap — first 200 lines OR 25KB,
+# whichever comes first. Truncates on whole-line boundaries (keeps valid UTF-8)
+# and leaves a visible marker, so nothing is dropped silently.
+MAX_LINES="${RECALL_INJECT_MAX_LINES:-200}"
+MAX_BYTES="${RECALL_INJECT_MAX_BYTES:-25600}"
+truncated=0
+if [ "$(printf '%s\n' "$CTX" | wc -l | tr -d ' ')" -gt "$MAX_LINES" ]; then
+  CTX="$(printf '%s\n' "$CTX" | head -n "$MAX_LINES")"; truncated=1
+fi
+while [ "$(printf '%s' "$CTX" | wc -c | tr -d ' ')" -gt "$MAX_BYTES" ] \
+   && [ "$(printf '%s\n' "$CTX" | wc -l | tr -d ' ')" -gt 1 ]; do
+  CTX="$(printf '%s\n' "$CTX" | sed '$d')"; truncated=1
+done
 
 # Read the hook event name from stdin (SessionStart for all sources). Default
 # to SessionStart if stdin parse fails — the value is informational only.
@@ -65,7 +78,11 @@ EVENT=$(printf '%s' "$STDIN_JSON" | jq -r '.hook_event_name // "SessionStart"' 2
 [ -z "$EVENT" ] && EVENT="SessionStart"
 
 # Emit JSON with additionalContext. jq -R -s --arg handles all escaping safely.
-printf '%s' "$CTX" | jq -R -s --arg event "$EVENT" \
+{
+  printf '%s\n' "$CTX"
+  [ "$truncated" -eq 1 ] && printf '… recall: knowledge index truncated to the injection budget (%s lines / %s bytes). Read the full indexes on demand under %s\n' "$MAX_LINES" "$MAX_BYTES" "$KNOWLEDGE"
+  echo "</recall-knowledge>"
+} | jq -R -s --arg event "$EVENT" \
   '{hookSpecificOutput: {hookEventName: $event, additionalContext: .}}'
 
 exit 0

@@ -80,6 +80,18 @@ cmd_status() {
       printf '%s\t%s\n' "$rel" "$n"
     done
   } | table
+  local maxl="${RECALL_INJECT_MAX_LINES:-200}" maxb="${RECALL_INJECT_MAX_BYTES:-25600}"
+  kv "inject cap" "${maxl} lines / $((maxb/1024))KB per session"
+  local any_over=0 idx il ib
+  for idx in "$KNOWLEDGE/global/INDEX.md" "$KNOWLEDGE"/projects/*/INDEX.md; do
+    [ -f "$idx" ] || continue
+    il=$(wc -l < "$idx" | tr -d ' '); ib=$(wc -c < "$idx" | tr -d ' ')
+    if [ "$il" -gt "$maxl" ] || [ "$ib" -gt "$maxb" ]; then
+      printf '      %s! %-22s %s lines / %sB — over budget%s\n' "$YEL" "${idx#$KNOWLEDGE/}" "$il" "$ib" "$R"
+      any_over=1
+    fi
+  done
+  [ "$any_over" -eq 0 ] && printf '      %s✓ all indexes within budget%s\n' "$GRN" "$R"
 
   hr "Distill"
   local jobline exit_ health last_line

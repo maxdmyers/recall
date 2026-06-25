@@ -93,6 +93,21 @@ if [ "$BEHIND" -gt 0 ] 2>/dev/null; then
   UPDATE_ROW="<div class=\"area\"><span class=\"al\">update</span><span style=\"flex:1\"></span><span class=\"ac\" style=\"width:auto;color:var(--amber)\">$BEHIND behind · recall.sh update</span></div>"
 fi
 
+# Injection-budget check (mirror inject-knowledge.sh defaults): flag any INDEX.md
+# that would be truncated at SessionStart.
+IMAXL="${RECALL_INJECT_MAX_LINES:-200}"; IMAXB="${RECALL_INJECT_MAX_BYTES:-25600}"
+IDX_OVER=0
+for idx in "$KN/global/INDEX.md" "$KN"/projects/*/INDEX.md; do
+  [ -f "$idx" ] || continue
+  il=$(wc -l < "$idx" | tr -d ' '); ib=$(wc -c < "$idx" | tr -d ' ')
+  { [ "$il" -gt "$IMAXL" ] || [ "$ib" -gt "$IMAXB" ]; } && IDX_OVER=$((IDX_OVER+1))
+done
+if [ "$IDX_OVER" -gt 0 ]; then
+  INJECT_ROW="<div class=\"area\"><span class=\"al\">inject</span><span style=\"flex:1\"></span><span class=\"ac\" style=\"width:auto;color:var(--amber)\">$IDX_OVER index(es) over budget</span></div>"
+else
+  INJECT_ROW="<div class=\"area\"><span class=\"al\">inject</span><span style=\"flex:1\"></span><span class=\"ac\" style=\"width:auto;color:var(--muted)\">within budget · ${IMAXL}ln / $((IMAXB/1024))KB</span></div>"
+fi
+
 # ---------- recent sessions ----------
 SESSION_ROWS=""
 while IFS=$'\t' read -r upd proj dis; do
@@ -314,6 +329,7 @@ cat > "$OUT" <<EOF
         <div class="area"><span class="al">last run</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">$LAST_DONE_REL</span></div>
         <div class="area"><span class="al">cadence</span><span style="flex:1"></span><span class="ac" style="width:auto;color:var(--muted)">$(esc "$CADENCE")</span></div>
         $UPDATE_ROW
+        $INJECT_ROW
         <div class="logline">$(esc "${LAST_LINE:-no log yet}")</div>
       </div>
     </div>
